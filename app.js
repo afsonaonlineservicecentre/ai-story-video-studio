@@ -166,29 +166,86 @@ $("download").addEventListener("click", () => {
 });
 
 loadVoices();
-function showSceneImages() {
+async function showSceneImages() {
   const container = document.getElementById("video-images");
 
   if (!container || !currentScenes.length) return;
 
-  container.innerHTML = "<h2>দৃশ্য অনুযায়ী ছবির বর্ণনা</h2>";
+  const workerURL =
+    "https://super-breeze-d500story-ai-backend-v2.yusufrahamankhan9883.workers.dev/";
 
-  currentScenes.forEach((scene, index) => {
+  container.innerHTML = "<h2>AI দিয়ে দৃশ্যের ছবি তৈরি হচ্ছে...</h2>";
+
+  const styleMap = {
+    "সিনেমাটিক": "cinematic, dramatic lighting, movie scene",
+    "কার্টুন": "colorful cartoon illustration",
+    "অ্যানিমে": "anime art style, detailed background",
+    "বাস্তবধর্মী": "photorealistic, realistic lighting",
+    "ফ্যান্টাসি": "fantasy art, magical atmosphere"
+  };
+
+  for (let index = 0; index < currentScenes.length; index++) {
+    const scene = currentScenes[index];
+
     const card = document.createElement("div");
     card.className = "scene-card";
 
     const title = document.createElement("h3");
     title.textContent = "দৃশ্য " + (index + 1);
 
-    const prompt = document.createElement("p");
+    const status = document.createElement("p");
+    status.textContent = "ছবি তৈরি হচ্ছে...";
 
-    const styleMap = {
-      "সিনেমাটিক": "cinematic, dramatic lighting, movie scene, high detail",
-      "কার্টুন": "colorful cartoon illustration, expressive characters",
-      "অ্যানিমে": "anime art style, detailed background, beautiful colors",
-      "বাস্তবধর্মী": "photorealistic, realistic lighting, highly detailed",
-      "ফ্যান্টাসি": "fantasy art, magical atmosphere, beautiful scenery"
-    };
+    card.append(title, status);
+    container.appendChild(card);
+
+    const prompt =
+      (styleMap[scene.style] || "beautiful illustration") +
+      ". Create an image showing: " +
+      scene.text +
+      ". Consistent characters, 16:9 landscape composition, no text.";
+
+    try {
+      const response = await fetch(workerURL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ prompt })
+      });
+
+      if (!response.ok) {
+        throw new Error("Server error: " + response.status);
+      }
+
+      const blob = await response.blob();
+
+      if (!blob.size || !blob.type.startsWith("image/")) {
+        throw new Error("সঠিক ছবির ডেটা পাওয়া যায়নি");
+      }
+
+      const imageURL = URL.createObjectURL(blob);
+
+      const img = document.createElement("img");
+      img.src = imageURL;
+      img.alt = "দৃশ্য " + (index + 1);
+      img.style.width = "100%";
+      img.style.borderRadius = "12px";
+
+      status.textContent = "ছবি তৈরি হয়েছে!";
+      card.appendChild(img);
+
+      const download = document.createElement("a");
+      download.href = imageURL;
+      download.download = "scene-" + (index + 1) + ".png";
+      download.textContent = "ছবি ডাউনলোড করুন";
+      card.appendChild(download);
+
+    } catch (error) {
+      status.textContent = "ছবি তৈরি হয়নি: " + error.message;
+    }
+  }
+}
 
     const stylePrompt = styleMap[scene.style] || "beautiful detailed illustration";
 
