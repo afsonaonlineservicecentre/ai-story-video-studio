@@ -213,3 +213,96 @@ function showSceneImages() {
     container.appendChild(card);
   });
 }
+const videoButton = document.getElementById("create-video");
+
+if (videoButton) {
+  videoButton.addEventListener("click", async () => {
+    const status = document.getElementById("video-status");
+
+    if (!currentScenes.length) {
+      alert("আগে দৃশ্য তৈরি করুন।");
+      return;
+    }
+
+    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
+      status.textContent = "এই ব্রাউজারে ভিডিও তৈরি সমর্থিত নয়।";
+      return;
+    }
+
+    videoButton.disabled = true;
+    status.textContent = "ভিডিও তৈরি হচ্ছে...";
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 1280;
+    canvas.height = 720;
+
+    const ctx = canvas.getContext("2d");
+    const stream = canvas.captureStream(24);
+
+    const recorder = new MediaRecorder(stream, {
+      mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : "video/webm"
+    });
+
+    const chunks = [];
+
+    recorder.ondataavailable = event => {
+      if (event.data.size) chunks.push(event.data);
+    };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "my-story-video.webm";
+      link.click();
+
+      URL.revokeObjectURL(url);
+      status.textContent = "ভিডিও ডাউনলোড হয়েছে!";
+      videoButton.disabled = false;
+      stream.getTracks().forEach(track => track.stop());
+    };
+
+    recorder.start();
+
+    for (let i = 0; i < currentScenes.length; i++) {
+      const scene = currentScenes[i];
+
+      ctx.fillStyle = "#101322";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.font = "bold 42px sans-serif";
+      ctx.fillText("দৃশ্য " + (i + 1), 640, 250);
+
+      ctx.font = "30px sans-serif";
+      ctx.fillText("AI Story Studio", 640, 330);
+
+      ctx.font = "24px sans-serif";
+      const words = scene.text.split(" ");
+      let line = "";
+      let y = 410;
+
+      for (const word of words) {
+        const test = line + word + " ";
+        if (ctx.measureText(test).width > 1050) {
+          ctx.fillText(line, 640, y);
+          line = word + " ";
+          y += 42;
+        } else {
+          line = test;
+        }
+      }
+
+      ctx.fillText(line, 640, y);
+
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    recorder.stop();
+  });
+}
