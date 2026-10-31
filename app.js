@@ -1,6 +1,11 @@
+
 const $ = id => document.getElementById(id);
+
 let currentScenes = [];
 let voiceList = [];
+
+const WORKER_URL =
+  "https://super-breeze-d500story-ai-backend-v2.yusufrahamankhan9883.workers.dev/";
 
 function loadVoices() {
   if (!("speechSynthesis" in window)) return;
@@ -15,25 +20,35 @@ if ("speechSynthesis" in window) {
 function splitStory(text) {
   return text.replace(/\r/g, "")
     .split(/(?<=[.!?।])\s+|\n+/)
-    .map(s => s.trim()).filter(Boolean);
+    .map(s => s.trim())
+    .filter(Boolean);
 }
 
 function makeScenes() {
   const story = $("story").value.trim();
-  if (!story) return alert("আগে গল্প লিখুন।");
+
+  if (!story) {
+    alert("আগে গল্প লিখুন।");
+    return;
+  }
 
   const parts = splitStory(story);
   const minutes = Number($("duration").value);
-  const count = Math.max(3, Math.min(12, parts.length));
+  const count = Math.min(12, Math.max(3, parts.length));
 
-  currentScenes = Array.from({length: count}, (_, i) => {
+  currentScenes = Array.from({ length: count }, (_, i) => {
     const start = Math.floor(i * parts.length / count);
-    const end = Math.max(start + 1, Math.floor((i + 1) * parts.length / count));
+    const end = Math.max(
+      start + 1,
+      Math.floor((i + 1) * parts.length / count)
+    );
+
     return {
       title: `দৃশ্য ${i + 1}`,
       text: parts.slice(start, end).join(" "),
       style: $("style").value,
-      seconds: Math.round(minutes * 60 / count)
+      seconds: Math.round(minutes * 60 / count),
+      imageUrl: null
     };
   });
 
@@ -45,12 +60,13 @@ function render() {
   $("results").hidden = false;
   $("scenes").innerHTML = "";
 
-  currentScenes.forEach((scene, i) => {
+  currentScenes.forEach(scene => {
     const card = document.createElement("article");
     card.className = "scene";
 
     const title = document.createElement("h3");
-    title.textContent = `${scene.title} · ${scene.seconds} সেকেন্ড`;
+    title.textContent =
+      `${scene.title} · ${scene.seconds} সেকেন্ড`;
 
     const text = document.createElement("p");
     text.textContent = scene.text;
@@ -69,17 +85,21 @@ function render() {
 
 function speak(text) {
   if (!("speechSynthesis" in window)) {
-    return alert("আপনার ব্রাউজারে ভয়েস সুবিধা নেই।");
+    alert("আপনার ব্রাউজারে ভয়েস সুবিধা নেই।");
+    return;
   }
 
   speechSynthesis.cancel();
+
   const utterance = new SpeechSynthesisUtterance(text);
   const lang = $("lang").value;
 
-  utterance.lang = lang === "bn" ? "bn-BD" :
-                   lang === "hi" ? "hi-IN" : "en-US";
+  utterance.lang =
+    lang === "bn" ? "bn-BD" :
+    lang === "hi" ? "hi-IN" : "en-US";
 
   const wanted = $("voice").value;
+
   const matching = voiceList.filter(v =>
     v.lang.toLowerCase().startsWith(lang)
   );
@@ -91,9 +111,9 @@ function speak(text) {
   ) || matching[0];
 
   if (chosen) utterance.voice = chosen;
+
   speechSynthesis.speak(utterance);
 }
-
 
 function speakAll() {
   if (!currentScenes.length) {
@@ -119,8 +139,9 @@ function speakAll() {
 
     const lang = $("lang").value;
 
-    utterance.lang = lang === "bn" ? "bn-BD" :
-                     lang === "hi" ? "hi-IN" : "en-US";
+    utterance.lang =
+      lang === "bn" ? "bn-BD" :
+      lang === "hi" ? "hi-IN" : "en-US";
 
     utterance.rate = 0.9;
 
@@ -129,7 +150,7 @@ function speakAll() {
       playNext();
     };
 
-    utterance.onerror = (event) => {
+    utterance.onerror = event => {
       alert("ভয়েস চালাতে সমস্যা হচ্ছে: " + event.error);
     };
 
@@ -139,49 +160,43 @@ function speakAll() {
   playNext();
 }
 
-
-$("make").addEventListener("click", makeScenes);
-
-$("clear").addEventListener("click", () => {
-  $("story").value = "";
-  $("results").hidden = true;
-  currentScenes = [];
-  speechSynthesis.cancel();
-});
-
-$("download").addEventListener("click", () => {
-  const content = currentScenes.map(s =>
-    `${s.title}\n${s.text}\nসময়: ${s.seconds} সেকেন্ড\nস্টাইল: ${s.style}`
+function downloadScript() {
+  const content = currentScenes.map(scene =>
+    `${scene.title}\n${scene.text}\nসময়: ${scene.seconds} সেকেন্ড\nস্টাইল: ${scene.style}`
   ).join("\n\n");
 
   const blob = new Blob([content], {
     type: "text/plain;charset=utf-8"
   });
 
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
+
+  link.href = url;
   link.download = "story-scenes.txt";
   link.click();
-  URL.revokeObjectURL(link.href);
-});
 
-loadVoices();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 async function showSceneImages() {
-  const container = document.getElementById("video-images");
+  const container = $("video-images");
 
   if (!container || !currentScenes.length) return;
 
-  const workerURL =
-    "https://super-breeze-d500story-ai-backend-v2.yusufrahamankhan9883.workers.dev/";
-
-  container.innerHTML = "<h2>AI দিয়ে দৃশ্যের ছবি তৈরি হচ্ছে...</h2>";
+  container.innerHTML = "<h2>AI দিয়ে দৃশ্যের ছবি তৈরি</h2>";
 
   const styleMap = {
-    "সিনেমাটিক": "cinematic, dramatic lighting, movie scene",
-    "কার্টুন": "colorful cartoon illustration",
-    "অ্যানিমে": "anime art style, detailed background",
-    "বাস্তবধর্মী": "photorealistic, realistic lighting",
-    "ফ্যান্টাসি": "fantasy art, magical atmosphere"
+    "সিনেমাটিক":
+      "cinematic, dramatic lighting, movie scene, high detail",
+    "কার্টুন":
+      "colorful cartoon illustration, expressive characters",
+    "অ্যানিমে":
+      "anime art style, detailed background, beautiful colors",
+    "বাস্তবধর্মী":
+      "photorealistic, realistic lighting, highly detailed",
+    "ফ্যান্টাসি":
+      "fantasy art, magical atmosphere, beautiful scenery"
   };
 
   for (let index = 0; index < currentScenes.length; index++) {
@@ -197,7 +212,7 @@ async function showSceneImages() {
     status.textContent = "ছবি তৈরি হচ্ছে...";
 
     card.append(title, status);
-    container.appendChild(card);
+    container.append(card);
 
     const prompt =
       (styleMap[scene.style] || "beautiful illustration") +
@@ -206,7 +221,7 @@ async function showSceneImages() {
       ". Consistent characters, 16:9 landscape composition, no text.";
 
     try {
-      const response = await fetch(workerURL, {
+      const response = await fetch(WORKER_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -215,151 +230,212 @@ async function showSceneImages() {
       });
 
       if (!response.ok) {
-        throw new Error("Server error: " + response.status);
+        const errorText = await response.text();
+        throw new Error(errorText || "Server error: " + response.status);
       }
 
       const blob = await response.blob();
 
       if (!blob.size || !blob.type.startsWith("image/")) {
-        throw new Error("সঠিক ছবির ডেটা পাওয়া যায়নি");
+        throw new Error("সঠিক ছবির ডেটা পাওয়া যায়নি।");
       }
 
       const imageURL = URL.createObjectURL(blob);
+      scene.imageUrl = imageURL;
 
       const img = document.createElement("img");
       img.src = imageURL;
-      img.alt = "দৃশ্য " + (index + 1);
+      img.alt = scene.title;
       img.style.width = "100%";
+      img.style.height = "auto";
       img.style.borderRadius = "12px";
 
       status.textContent = "ছবি তৈরি হয়েছে!";
-      card.appendChild(img);
 
       const download = document.createElement("a");
       download.href = imageURL;
-      download.download = "scene-" + (index + 1) + ".png";
+      download.download = `scene-${index + 1}.png`;
       download.textContent = "ছবি ডাউনলোড করুন";
-      card.appendChild(download);
+      download.style.display = "inline-block";
+      download.style.margin = "12px";
+
+      card.append(img, download);
 
     } catch (error) {
-      status.textContent = "ছবি তৈরি হয়নি: " + error.message;
+      status.textContent =
+        "ছবি তৈরি হয়নি: " + error.message;
     }
   }
 }
 
-    const stylePrompt = styleMap[scene.style] || "beautiful detailed illustration";
+$("make").addEventListener("click", makeScenes);
 
-    prompt.textContent =
-      stylePrompt + ". Create an image showing: " +
-      scene.text +
-      ". Consistent characters, 16:9 landscape composition, no text.";
+$("clear").addEventListener("click", () => {
+  if ("speechSynthesis" in window) {
+    speechSynthesis.cancel();
+  }
 
-    const copy = document.createElement("button");
-    copy.textContent = "ছবির বর্ণনা কপি করুন";
-
-    copy.onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(prompt.textContent);
-        alert("ছবির বর্ণনা কপি হয়েছে!");
-      } catch (error) {
-        alert("কপি হয়নি। বর্ণনাটি হাতে কপি করুন।");
-      }
-    };
-
-    card.append(title, prompt, copy);
-    container.appendChild(card);
+  currentScenes.forEach(scene => {
+    if (scene.imageUrl) {
+      URL.revokeObjectURL(scene.imageUrl);
+    }
   });
-}
-const videoButton = document.getElementById("create-video");
+
+  $("story").value = "";
+  $("results").hidden = true;
+  $("scenes").innerHTML = "";
+  $("video-images").innerHTML = "";
+  currentScenes = [];
+});
+
+$("download").addEventListener("click", downloadScript);
+
+loadVoices();
+
+const videoButton = $("create-video");
 
 if (videoButton) {
   videoButton.addEventListener("click", async () => {
-    const status = document.getElementById("video-status");
+    const status = $("video-status");
 
     if (!currentScenes.length) {
       alert("আগে দৃশ্য তৈরি করুন।");
       return;
     }
 
-    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
-      status.textContent = "এই ব্রাউজারে ভিডিও তৈরি সমর্থিত নয়।";
+    if (
+      !window.MediaRecorder ||
+      !HTMLCanvasElement.prototype.captureStream
+    ) {
+      status.textContent =
+        "এই ব্রাউজারে ভিডিও তৈরি সমর্থিত নয়।";
       return;
     }
 
     videoButton.disabled = true;
     status.textContent = "ভিডিও তৈরি হচ্ছে...";
 
-    const canvas = document.createElement("canvas");
-    canvas.width = 1280;
-    canvas.height = 720;
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1280;
+      canvas.height = 720;
 
-    const ctx = canvas.getContext("2d");
-    const stream = canvas.captureStream(24);
+      const ctx = canvas.getContext("2d");
+      const stream = canvas.captureStream(24);
 
-    const recorder = new MediaRecorder(stream, {
-      mimeType: MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
-        : "video/webm"
-    });
+      const mimeType =
+        MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+          ? "video/webm;codecs=vp9"
+          : "video/webm";
 
-    const chunks = [];
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const chunks = [];
 
-    recorder.ondataavailable = event => {
-      if (event.data.size) chunks.push(event.data);
-    };
+      recorder.ondataavailable = event => {
+        if (event.data.size) chunks.push(event.data);
+      };
 
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
+      const finished = new Promise((resolve, reject) => {
+        recorder.onstop = resolve;
+        recorder.onerror = () =>
+          reject(new Error("ভিডিও রেকর্ডিং ব্যর্থ হয়েছে।"));
+      });
+
+      recorder.start();
+
+      for (let i = 0; i < currentScenes.length; i++) {
+        const scene = currentScenes[i];
+
+        ctx.fillStyle = "#101322";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (scene.imageUrl) {
+          const img = new Image();
+          img.src = scene.imageUrl;
+
+          await new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          });
+
+          if (img.complete && img.naturalWidth) {
+            const scale = Math.max(
+              canvas.width / img.width,
+              canvas.height / img.height
+            );
+
+            const width = img.width * scale;
+            const height = img.height * scale;
+
+            ctx.drawImage(
+              img,
+              (canvas.width - width) / 2,
+              (canvas.height - height) / 2,
+              width,
+              height
+            );
+          }
+        }
+
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.fillRect(0, 570, canvas.width, 150);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.font = "bold 34px sans-serif";
+        ctx.fillText(scene.title, 640, 615);
+
+        ctx.font = "25px sans-serif";
+
+        const words = scene.text.split(/\s+/);
+        let line = "";
+        let y = 660;
+
+        for (const word of words) {
+          const test = line + word + " ";
+
+          if (ctx.measureText(test).width > 1100) {
+            ctx.fillText(line, 640, y);
+            line = word + " ";
+            y += 35;
+          } else {
+            line = test;
+          }
+        }
+
+        ctx.fillText(line, 640, y);
+
+        await new Promise(resolve =>
+          setTimeout(resolve, 3000)
+        );
+      }
+
+      recorder.stop();
+      await finished;
+
+      const videoBlob = new Blob(chunks, {
+        type: "video/webm"
+      });
+
+      const url = URL.createObjectURL(videoBlob);
       const link = document.createElement("a");
 
       link.href = url;
       link.download = "my-story-video.webm";
       link.click();
 
-      URL.revokeObjectURL(url);
-      status.textContent = "ভিডিও ডাউনলোড হয়েছে!";
-      videoButton.disabled = false;
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+      status.textContent =
+        "WebM ভিডিও ডাউনলোড হয়েছে!";
+
       stream.getTracks().forEach(track => track.stop());
-    };
 
-    recorder.start();
-
-    for (let i = 0; i < currentScenes.length; i++) {
-      const scene = currentScenes[i];
-
-      ctx.fillStyle = "#101322";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = "#ffffff";
-      ctx.textAlign = "center";
-      ctx.font = "bold 42px sans-serif";
-      ctx.fillText("দৃশ্য " + (i + 1), 640, 250);
-
-      ctx.font = "30px sans-serif";
-      ctx.fillText("AI Story Studio", 640, 330);
-
-      ctx.font = "24px sans-serif";
-      const words = scene.text.split(" ");
-      let line = "";
-      let y = 410;
-
-      for (const word of words) {
-        const test = line + word + " ";
-        if (ctx.measureText(test).width > 1050) {
-          ctx.fillText(line, 640, y);
-          line = word + " ";
-          y += 42;
-        } else {
-          line = test;
-        }
-      }
-
-      ctx.fillText(line, 640, y);
-
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    } catch (error) {
+      status.textContent =
+        "ভিডিও তৈরি হয়নি: " + error.message;
+    } finally {
+      videoButton.disabled = false;
     }
-
-    recorder.stop();
   });
 }
