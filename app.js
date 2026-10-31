@@ -1,4 +1,3 @@
-
 const $ = id => document.getElementById(id);
 let currentScenes = [];
 let voiceList = [];
@@ -39,6 +38,7 @@ function makeScenes() {
   });
 
   render();
+  showSceneImages();
 }
 
 function render() {
