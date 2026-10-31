@@ -166,3 +166,32 @@ $("download").addEventListener("click", () => {
 });
 
 loadVoices();
+function showSceneImages() {
+  const container = document.getElementById("video-images");
+
+  if (!container || !currentScenes || !currentScenes.length) return;
+
+  container.innerHTML = "<h2>দৃশ্যের ছবির ধারণা</h2>";
+
+  currentScenes.forEach((scene, index) => {
+    const card = document.createElement("div");
+    card.className = "scene-card";
+
+    const title = document.createElement("h3");
+    title.textContent = "দৃশ্য " + (index + 1);
+
+    const prompt = document.createElement("p");
+    prompt.textContent =
+      scene.text + " — " + $("style").value + " style illustration";
+
+    const copy = document.createElement("button");
+    copy.textContent = "ছবির বর্ণনা কপি করুন";
+    copy.onclick = () => {
+      navigator.clipboard.writeText(prompt.textContent);
+      alert("ছবির বর্ণনা কপি হয়েছে!");
+    };
+
+    card.append(title, prompt, copy);
+    container.appendChild(card);
+  });
+}
