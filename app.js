@@ -1,4 +1,4 @@
-
+alert("JavaScript চালু হয়েছে!");
 const $ = id => document.getElementById(id);
 
 let currentScenes = [];
