@@ -18,8 +18,10 @@ if ("speechSynthesis" in window) {
 }
 
 function splitStory(text) {
-  return text.replace(/\r/g, "")
-    .split(/(?<=[.!?।])\s+|\n+/)
+  return text
+    .replace(/\r/g, "")
+    .replace(/([.!?।])\s+/g, "$1\n")
+    .split(/\n+/)
     .map(s => s.trim())
     .filter(Boolean);
 }
