@@ -1,22 +1,30 @@
+
 const $ = id => document.getElementById(id);
 let currentScenes = [];
+let voiceList = [];
+
+function loadVoices() {
+  if (!("speechSynthesis" in window)) return;
+  voiceList = speechSynthesis.getVoices();
+}
+
+if ("speechSynthesis" in window) {
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
 
 function splitStory(text) {
   return text.replace(/\r/g, "")
     .split(/(?<=[.!?।])\s+|\n+/)
-    .map(s => s.trim())
-    .filter(Boolean);
+    .map(s => s.trim()).filter(Boolean);
 }
 
 function makeScenes() {
   const story = $("story").value.trim();
-  if (!story) {
-    alert("আগে আপনার গল্প লিখুন।");
-    return;
-  }
+  if (!story) return alert("আগে গল্প লিখুন।");
 
   const parts = splitStory(story);
-  const target = $("duration").value === "10" ? 10 : 5;
+  const minutes = Number($("duration").value);
   const count = Math.max(3, Math.min(12, parts.length));
 
   currentScenes = Array.from({length: count}, (_, i) => {
@@ -26,7 +34,7 @@ function makeScenes() {
       title: `দৃশ্য ${i + 1}`,
       text: parts.slice(start, end).join(" "),
       style: $("style").value,
-      seconds: Math.round(target * 60 / count)
+      seconds: Math.round(minutes * 60 / count)
     };
   });
 
@@ -37,45 +45,72 @@ function render() {
   $("results").hidden = false;
   $("scenes").innerHTML = "";
 
-  currentScenes.forEach(s => {
-    const el = document.createElement("article");
-    el.className = "scene";
+  currentScenes.forEach((scene, i) => {
+    const card = document.createElement("article");
+    card.className = "scene";
 
-    const h = document.createElement("h3");
-    h.textContent = `${s.title} · প্রায় ${s.seconds} সেকেন্ড`;
+    const title = document.createElement("h3");
+    title.textContent = `${scene.title} · ${scene.seconds} সেকেন্ড`;
 
-    const p = document.createElement("p");
-    p.textContent = s.text;
+    const text = document.createElement("p");
+    text.textContent = scene.text;
 
-    const meta = document.createElement("p");
-    meta.textContent = `স্টাইল: ${s.style}`;
+    const style = document.createElement("p");
+    style.textContent = `স্টাইল: ${scene.style}`;
 
-    const b = document.createElement("button");
-    b.textContent = "এই দৃশ্যটি শুনুন";
-    b.onclick = () => speak(s.text);
+    const play = document.createElement("button");
+    play.textContent = "এই দৃশ্য শুনুন";
+    play.onclick = () => speak(scene.text);
 
-    el.append(h, p, meta, b);
-    $("scenes").append(el);
+    card.append(title, text, style, play);
+    $("scenes").append(card);
   });
 }
 
 function speak(text) {
   if (!("speechSynthesis" in window)) {
-    alert("এই ব্রাউজারে Text-to-Speech নেই।");
-    return;
+    return alert("আপনার ব্রাউজারে ভয়েস সুবিধা নেই।");
   }
 
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
+  const utterance = new SpeechSynthesisUtterance(text);
   const lang = $("lang").value;
-  u.lang = lang === "bn" ? "bn-BD" : lang === "hi" ? "hi-IN" : "en-US";
 
-  const voices = speechSynthesis.getVoices();
-  const matching = voices.filter(v => v.lang.toLowerCase().startsWith(lang));
-  const chosen = matching.find(v => v.name.toLowerCase().includes($("voice").value)) || matching[0];
-  if (chosen) u.voice = chosen;
+  utterance.lang = lang === "bn" ? "bn-BD" :
+                   lang === "hi" ? "hi-IN" : "en-US";
 
-  speechSynthesis.speak(u);
+  const wanted = $("voice").value;
+  const matching = voiceList.filter(v =>
+    v.lang.toLowerCase().startsWith(lang)
+  );
+
+  const chosen = matching.find(v =>
+    wanted === "male"
+      ? /male|man|boy/i.test(v.name)
+      : /female|woman|girl/i.test(v.name)
+  ) || matching[0];
+
+  if (chosen) utterance.voice = chosen;
+  speechSynthesis.speak(utterance);
+}
+
+function speakAll() {
+  if (!currentScenes.length) return alert("আগে দৃশ্য তৈরি করুন।");
+
+  speechSynthesis.cancel();
+  currentScenes.forEach((scene, i) => {
+    const utterance = new SpeechSynthesisUtterance(scene.text);
+    const lang = $("lang").value;
+    utterance.lang = lang === "bn" ? "bn-BD" :
+                     lang === "hi" ? "hi-IN" : "en-US";
+
+    const matching = voiceList.filter(v =>
+      v.lang.toLowerCase().startsWith(lang)
+    );
+    if (matching.length) utterance.voice = matching[0];
+
+    speechSynthesis.speak(utterance);
+  });
 }
 
 $("make").addEventListener("click", makeScenes);
@@ -88,15 +123,19 @@ $("clear").addEventListener("click", () => {
 });
 
 $("download").addEventListener("click", () => {
-  const text = currentScenes.map(s =>
-    `${s.title} (${s.seconds} সেকেন্ড)\n${s.text}\nস্টাইল: ${s.style}`
+  const content = currentScenes.map(s =>
+    `${s.title}\n${s.text}\nসময়: ${s.seconds} সেকেন্ড\nস্টাইল: ${s.style}`
   ).join("\n\n");
 
-  const blob = new Blob([text], {type: "text/plain;charset=utf-8"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "story-scenes.txt";
-  a.click();
-  URL.revokeObjectURL(a.href);
+  const blob = new Blob([content], {
+    type: "text/plain;charset=utf-8"
+  });
+
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = "story-scenes.txt";
+  link.click();
+  URL.revokeObjectURL(link.href);
 });
-                            
+
+loadVoices();
