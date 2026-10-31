@@ -94,24 +94,51 @@ function speak(text) {
   speechSynthesis.speak(utterance);
 }
 
+
 function speakAll() {
-  if (!currentScenes.length) return alert("আগে দৃশ্য তৈরি করুন।");
+  if (!currentScenes.length) {
+    alert("আগে দৃশ্য তৈরি করুন।");
+    return;
+  }
+
+  if (!("speechSynthesis" in window)) {
+    alert("এই ব্রাউজারে ভয়েস সুবিধা নেই।");
+    return;
+  }
 
   speechSynthesis.cancel();
-  currentScenes.forEach((scene, i) => {
-    const utterance = new SpeechSynthesisUtterance(scene.text);
+
+  let index = 0;
+
+  function playNext() {
+    if (index >= currentScenes.length) return;
+
+    const utterance = new SpeechSynthesisUtterance(
+      currentScenes[index].text
+    );
+
     const lang = $("lang").value;
+
     utterance.lang = lang === "bn" ? "bn-BD" :
                      lang === "hi" ? "hi-IN" : "en-US";
 
-    const matching = voiceList.filter(v =>
-      v.lang.toLowerCase().startsWith(lang)
-    );
-    if (matching.length) utterance.voice = matching[0];
+    utterance.rate = 0.9;
+
+    utterance.onend = () => {
+      index++;
+      playNext();
+    };
+
+    utterance.onerror = (event) => {
+      alert("ভয়েস চালাতে সমস্যা হচ্ছে: " + event.error);
+    };
 
     speechSynthesis.speak(utterance);
-  });
+  }
+
+  playNext();
 }
+
 
 $("make").addEventListener("click", makeScenes);
 
