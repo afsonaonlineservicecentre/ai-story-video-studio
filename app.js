@@ -169,9 +169,9 @@ loadVoices();
 function showSceneImages() {
   const container = document.getElementById("video-images");
 
-  if (!container || !currentScenes || !currentScenes.length) return;
+  if (!container || !currentScenes.length) return;
 
-  container.innerHTML = "<h2>দৃশ্যের ছবির ধারণা</h2>";
+  container.innerHTML = "<h2>দৃশ্য অনুযায়ী ছবির বর্ণনা</h2>";
 
   currentScenes.forEach((scene, index) => {
     const card = document.createElement("div");
@@ -181,14 +181,32 @@ function showSceneImages() {
     title.textContent = "দৃশ্য " + (index + 1);
 
     const prompt = document.createElement("p");
+
+    const styleMap = {
+      "সিনেমাটিক": "cinematic, dramatic lighting, movie scene, high detail",
+      "কার্টুন": "colorful cartoon illustration, expressive characters",
+      "অ্যানিমে": "anime art style, detailed background, beautiful colors",
+      "বাস্তবধর্মী": "photorealistic, realistic lighting, highly detailed",
+      "ফ্যান্টাসি": "fantasy art, magical atmosphere, beautiful scenery"
+    };
+
+    const stylePrompt = styleMap[scene.style] || "beautiful detailed illustration";
+
     prompt.textContent =
-      scene.text + " — " + $("style").value + " style illustration";
+      stylePrompt + ". Create an image showing: " +
+      scene.text +
+      ". Consistent characters, 16:9 landscape composition, no text.";
 
     const copy = document.createElement("button");
     copy.textContent = "ছবির বর্ণনা কপি করুন";
-    copy.onclick = () => {
-      navigator.clipboard.writeText(prompt.textContent);
-      alert("ছবির বর্ণনা কপি হয়েছে!");
+
+    copy.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(prompt.textContent);
+        alert("ছবির বর্ণনা কপি হয়েছে!");
+      } catch (error) {
+        alert("কপি হয়নি। বর্ণনাটি হাতে কপি করুন।");
+      }
     };
 
     card.append(title, prompt, copy);
