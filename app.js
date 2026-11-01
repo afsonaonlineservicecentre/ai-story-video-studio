@@ -117,6 +117,7 @@ function speak(text) {
   speechSynthesis.speak(utterance);
 }
 
+ speakAll() {
 function speakAll() {
   if (!currentScenes.length) {
     alert("আগে দৃশ্য তৈরি করুন।");
@@ -142,7 +143,7 @@ function speakAll() {
     const lang = $("lang").value;
 
     utterance.lang =
-      lang === "bn" ? "bn-BD" :
+      lang === "bn" ? "bn-IN" :
       lang === "hi" ? "hi-IN" : "en-US";
 
     utterance.rate = 0.9;
@@ -153,15 +154,19 @@ function speakAll() {
     };
 
     utterance.onerror = event => {
+      if (
+        event.error === "interrupted" ||
+        event.error === "canceled"
+      ) return;
+
       alert("ভয়েস চালাতে সমস্যা হচ্ছে: " + event.error);
     };
 
     speechSynthesis.speak(utterance);
   }
 
-  playNext();
+  setTimeout(playNext, 150);
 }
-
 function downloadScript() {
   const content = currentScenes.map(scene =>
     `${scene.title}\n${scene.text}\nসময়: ${scene.seconds} সেকেন্ড\nস্টাইল: ${scene.style}`
