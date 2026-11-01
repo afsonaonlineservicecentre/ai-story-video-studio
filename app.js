@@ -117,7 +117,6 @@ function speak(text) {
   speechSynthesis.speak(utterance);
 }
 
- speakAll() {
 function speakAll() {
   if (!currentScenes.length) {
     alert("আগে দৃশ্য তৈরি করুন।");
