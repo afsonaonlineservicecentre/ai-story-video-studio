@@ -441,3 +441,16 @@ if (videoButton) {
     }
   });
 }
+setTimeout(() => {
+  loadVoices();
+
+  const bengaliVoices = voiceList.filter(v =>
+    v.lang.toLowerCase().startsWith("bn")
+  );
+
+  alert(
+    bengaliVoices.length
+      ? bengaliVoices.map(v => v.name + " (" + v.lang + ")").join("\n")
+      : "বাংলা ভয়েস পাওয়া যায়নি"
+  );
+}, 2000);
